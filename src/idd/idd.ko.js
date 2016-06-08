@@ -1,79 +1,189 @@
 if(ko) { //add Knockout bindings. Requires that IDD loaded after Knockout
     var lineThickness = 3;
+	
+	function updatePolyline(element, valueAccessor, allBindings, viewModel, bindingContext) {
+		var data = {};
+		if (!allBindings.has('iddY'))
+			if (!allBindings.has('iddYMedian'))
+				throw new Error("Please define iddY or iddYMedian binding along with iddX");
+			else {
+				data.y = {median: ko.unwrap(allBindings.get('iddYMedian'))};
+				
+				if (allBindings.has('iddLower68'))
+					data.y.lower68 = ko.unprap(allBindings.get('iddLower68'));
+				if (allBindings.has('iddUpper68'))
+					data.y.upper68 = ko.unprap(allBindings.get('iddUpper68'));
+				if (allBindings.has('iddUpper95'))
+					data.y.upper95 = ko.unprap(allBindings.get('iddUpper95'));
+				if (allBindings.has('iddLower95'))
+					data.y.lower95 = ko.unprap(allBindings.get('iddLower95'));
+			}
+		else
+			data.y = ko.unwrap(allBindings.get('iddY'));
+		
+		if (!allBindings.has('iddX'))
+			throw new Error("Please define iddX binding along with iddY");
+		else
+			data.x = ko.unwrap(allBindings.get('iddX'));
 
-    ko.bindingHandlers.iddPlotName = {
-        update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
-            var value = valueAccessor();
-            var unwrappedName = ko.unwrap(value);
-
-            var plotAttr = element.getAttribute("data-idd-plot");
-            if (plotAttr != null) {
-                if (typeof element.plot != 'undefined') {
-                    element.plot.name = unwrappedName;
-                }
-                else { //the case when the element was not yet initialized and not yet bound to the logical entity (plot)
-                    //storing the data in the DOM. it will be used by IDD during IDD-initializing of the dom element
-
-                    //saving plot name in  attribute: will be picked up by initialization
-                    element.setAttribute("data-idd-name", unwrappedName);
-
-                }
-            }
+        if (data.y.length) {
+            if (data.x.length !== data.y.length)
+                return;
+        } else if (data.y.median) {
+            if (data.x.length !== data.y.median.length)
+                return;
+            if (data.y.lower68 && x.length !== data.y.lower68.length)
+                return;
+            if (data.y.upper68 && x.length !== data.y.upper68.length)
+                return;
+            if (data.y.lower95 && x.length !== data.y.lower95.length)
+                return;
+            if (data.y.upper95 && x.length !== data.y.upper95.length)
+                return;            
         }
-    };
-
-    ko.bindingHandlers.iddY = {
-        update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
-            var value = valueAccessor();
-            var unwrappedY = ko.unwrap(value);
-
-            var xBindings;
-            if (!allBindings.has('iddX'))
-                throw new Error("Please define iddX binding along with iddY");
-            else
-                xBindings = allBindings.get('iddX');
-            var stroke = undefined;
-            if (allBindings.has('iddStroke')) {
-                var strokeBinding = allBindings.get('iddStroke');
-                stroke = ko.unwrap(strokeBinding);
-            }
-			var shape = undefined;
-			if (allBindings.has('iddShape')) {
-				var shapeBinding = allBindings.get('iddShape');
-				shape = ko.unwrap(shapeBinding);
+		
+		if (allBindings.has('iddStroke')) 
+			data.stroke = ko.unwrap(allBindings.get('iddStroke'));
+		if (allBindings.has('iddThickness')) 
+			data.thickness = ko.unwrap(allBindings.get('iddThickness'));
+		if (allBindings.has('iddLineCap')) 
+			data.lineCap = ko.unwrap(allBindings.get('iddLineCap'));
+		if (allBindings.has('iddLineJoin')) 
+			data.lineJoin = ko.unwrap(allBindings.get('iddLineJoin'));
+		if (allBindings.has('iddFill68')) 
+			data.fill68 = ko.unwrap(allBindings.get('iddFill68'));
+		if (allBindings.has('iddFill95')) 
+			data.fill95 = ko.unwrap(allBindings.get('iddFill95'));
+		
+		var plotAttr = element.getAttribute("data-idd-plot");
+		if (plotAttr != null) {
+			if (typeof element.plot != 'undefined') {
+				element.plot.draw(data);
 			}
-			var color = undefined;
-			if (allBindings.has('iddColor')) {
-				var colorBinding = allBindings.get('iddColor');
-				color = ko.unwrap(colorBinding);
-			}
-            var unwrappedX = ko.unwrap(xBindings);
-            var plotAttr = element.getAttribute("data-idd-plot");
-            if (plotAttr != null) {
-                if (typeof element.plot != 'undefined') {
-                    var data = { x: unwrappedX, y: unwrappedY };
-                    if (typeof stroke != 'undefined')
-                        data.stroke = stroke;
-                    data.thickness = lineThickness;
-                    element.plot.draw(data);
+			else { //the case when the element was not yet initialized and not yet bound to the logical entity (plot)
+				//storing the data in the DOM. it will be used by IDD during IDD-initializing of the dom element				
+				var csvDataToDraw = "x ";
+                if (data.y.length) csvDataToDraw += "y";
+                else if (data.y.median) {
+                    csvDataToDraw += "y.median ";
+                    if (data.y.lower68) csvDataToDraw += "y.lower68 ";
+                    if (data.y.upper68) csvDataToDraw += "y.upper68 ";
+                    if (data.y.lower95) csvDataToDraw += "y.lower95 ";
+                    if (data.y.upper95) csvDataToDraw += "y.upper95 ";
                 }
-                else { //the case when the element was not yet initialized and not yet bound to the logical entity (plot)
-                    //storing the data in the DOM. it will be used by IDD during IDD-initializing of the dom element
-                    var csvDataToDraw = "x y";
-                    var len = unwrappedX.length;
-                    for (var i = 0; i < len; i++) {
-                        csvDataToDraw += "\n" + unwrappedX[i] + " " + unwrappedY[i];
+
+				var len = unwrappedX.length;
+				for (var i = 0; i < len; i++) {
+					csvDataToDraw += "\n" + data.x[i] + " ";
+                    if (data.y.length) csvDataToDraw += data.y[i] + " ";
+                    else if (data.y.median) {
+                        csvDataToDraw += data.y.median[i] + " ";
+                        if (data.y.lower68) csvDataToDraw += data.y.lower68[i] + " ";
+                        if (data.y.upper68) csvDataToDraw += data.y.upper68[i] + " ";
+                        if (data.y.lower95) csvDataToDraw += data.y.lower95[i] + " ";
+                        if (data.y.upper95) csvDataToDraw += data.y.upper95[i] + " ";
                     }
-                    element.innerHTML = csvDataToDraw;
+				}
 
-                        //saving stroke color in the data-idd-style attribute: will be picked up by initialization
-					element.setAttribute("data-idd-style",  (stroke ? "stroke: " + stroke + "; thickness: " + lineThickness + ";": "") +
-															(shape ? "shape: " + shape + ";" : "") + 
-															(color ? "color: " + color + ";" : ""));
-                }
+				element.innerHTML = csvDataToDraw;
+					//saving stroke color in the data-idd-style attribute: will be picked up by initialization
+				element.setAttribute("data-idd-style",  (data.stroke    ? "stroke: "    + data.stroke:    "") + 
+                                                        (data.lineCap   ? "lineCap: "   + data.lineCap:   "") + 
+                                                        (data.lineJoin  ? "lineJoin: "  + data.lineJoin:  "") + 
+                                                        (data.thickness ? "thickness: " + data.thickness: "") + 
+                                                        (data.fill68    ? "fill68: "    + data.fill68:    "") + 
+                                                        (data.fill95    ? "fill95: "    + data.fill95:    ""));
+			}
+		}
+	}
+	    
+	function updateMarkers(element, valueAccessor, allBindings, viewModel, bindingContext) {
+		var data = {};		
+        if (!allBindings.has('iddY'))
+            throw new Error("Please define iddY binding along with iddX");
+		else
+			data.y = ko.unwrap(allBindings.get('iddY'));
+		
+		if (!allBindings.has('iddX'))
+			throw new Error("Please define iddX binding along with iddY");
+		else
+			data.x = ko.unwrap(allBindings.get('iddX'));
+		
+
+        if (data.x.length !== data.y.length)
+            return;
+
+		if (allBindings.has('iddShape')) 
+			data.shape = ko.unwrap(allBindings.get('iddShape'));
+		if (allBindings.has('iddSize')) 
+			data.size = ko.unwrap(allBindings.get('iddSize'));
+		if (allBindings.has('iddBorder')) 
+			data.border = ko.unwrap(allBindings.get('iddBorder'));
+		if (allBindings.has('iddColor')) 
+			data.color = ko.unwrap(allBindings.get('iddColor'));
+		
+		var plotAttr = element.getAttribute("data-idd-plot");
+		if (plotAttr != null) {
+			if (typeof element.plot != 'undefined') {
+				element.plot.draw(data);
+			}
+			else { //the case when the element was not yet initialized and not yet bound to the logical entity (plot)
+				//storing the data in the DOM. it will be used by IDD during IDD-initializing of the dom element				
+				var csvDataToDraw = "x y";
+				var len = unwrappedX.length;
+				for (var i = 0; i < len; i++) {
+					csvDataToDraw += "\n" + data.x[i] + " " + data.y[i];
+				}
+
+				element.innerHTML = csvDataToDraw;
+					//saving stroke color in the data-idd-style attribute: will be picked up by initialization
+				element.setAttribute("data-idd-style",  (data.shape  ? "shape: "  + data.shape:  "") + 
+                                                        (data.size   ? "size: "   + data.size:   "") + 
+                                                        (data.border ? "border: " + data.border: "") + 
+                                                        (data.color  ? "color: "  + data.color:  ""));
+			}
+		}
+	}
+	
+	function updatePlot(element, valueAccessor, allBindings, viewModel, bindingContext) {		
+		var plotAttr = element.getAttribute("data-idd-plot");
+		if (plotAttr != null) {
+			switch (plotAttr) {
+				case 'polyline':
+					updatePolyline(element, valueAccessor, allBindings, viewModel, bindingContext);
+					break;
+				case 'area':
+					
+					break;
+				case 'markers':
+				    updateMarkers(element, valueAccessor, allBindings, viewModel, bindingContext);
+					break;
+			}			
+		}	
+	}
+	
+    var binding = function () {
+        return {
+            update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
+                updatePlot(element, valueAccessor, allBindings, viewModel, bindingContext);
             }
         }
-    };
+    }
+
+    ko.bindingHandlers.iddPlotName  = binding();
+    ko.bindingHandlers.iddY         = binding();
+    ko.bindingHandlers.iddYMedian   = binding();
+    ko.bindingHandlers.iddLower68   = binding();
+    ko.bindingHandlers.iddUpper68   = binding();
+    ko.bindingHandlers.iddLower95   = binding();
+    ko.bindingHandlers.iddUpper95   = binding();
+    ko.bindingHandlers.iddStroke    = binding();    
+    ko.bindingHandlers.iddThickness = binding();
+    ko.bindingHandlers.iddX         = binding();
+    ko.bindingHandlers.iddShape     = binding();
+    ko.bindingHandlers.iddSize      = binding();
+    ko.bindingHandlers.iddBorder    = binding();
+    ko.bindingHandlers.iddColor     = binding();
 
     ko.bindingHandlers.iddAreaY1 = {
         update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
